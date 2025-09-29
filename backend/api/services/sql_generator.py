@@ -83,24 +83,44 @@ class SQLGenerator:
                         description="Employees reporting to manager",
                     )
 
-        if "top" in normalized and "highest" in normalized:
+        # Top earners (globally or per department)
+        if "top" in normalized and (
+            "earner" in normalized or "salary" in normalized or "paid" in normalized
+            or "compensation" in normalized or "salaries" in normalized or "highest" in normalized
+        ):
             salary_column = self._find_column(target_table, {"salary", "compensation", "pay", "pay_rate"})
-            department_column = self._find_column(target_table, {"department", "division", "dept"})
-            top_match = re.search(r"top (\d+)", normalized)
+            department_column = self._find_column(target_table, {"department", "division", "dept", "team"})
+            top_match = re.search(r"top\s+(\d+)", normalized)
             limit = int(top_match.group(1)) if top_match else 5
             if salary_column:
-                order_clause = f"ORDER BY {salary_column} DESC"
-                select_columns = "*"
-                if department_column and "each" in normalized and "department" in normalized:
-                    select_columns = f"{department_column}, {salary_column}, *"
-                return SQLQuery(
-                    sql=(
-                        f"SELECT {select_columns} FROM {target_table} "
-                        f"{order_clause} LIMIT {limit}"
-                    ),
-                    params={},
-                    description="Top earners",
-                )
+                per_dept = (
+                    ("each" in normalized and "department" in normalized)
+                    or ("per" in normalized and "department" in normalized)
+                    or ("by" in normalized and "department" in normalized)
+                    or ("in" in normalized and "each department" in normalized)
+                ) and department_column is not None
+
+                if per_dept and department_column:
+                    # Window function to get top N per department
+                    return SQLQuery(
+                        sql=(
+                            "SELECT * FROM ("
+                            f" SELECT *, ROW_NUMBER() OVER (PARTITION BY {department_column} ORDER BY {salary_column} DESC) AS rn"
+                            f" FROM {target_table}"
+                            ") t WHERE rn <= :limit "
+                            f"ORDER BY {department_column}, {salary_column} DESC"
+                        ),
+                        params={"limit": limit},
+                        description="Top earners per department",
+                    )
+                else:
+                    return SQLQuery(
+                        sql=(
+                            f"SELECT * FROM {target_table} ORDER BY {salary_column} DESC LIMIT :limit"
+                        ),
+                        params={"limit": limit},
+                        description="Top earners",
+                    )
 
         if "skill" in normalized or "skills" in normalized:
             skills_column = self._find_column(target_table, {"skills", "skillset", "competencies"})

@@ -97,6 +97,7 @@ class QueryEngine:
             metrics={
                 "response_ms": round((time.perf_counter() - start_time) * 1000, 2),
                 "cache_hit": False,
+                "doc_index_size": self._vector_store.size(),
             },
             sources=sources or None,
         )

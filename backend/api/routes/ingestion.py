@@ -66,6 +66,28 @@ async def upload_documents(
     )
 
 
+@router.get("/jobs")
+async def list_jobs() -> dict:
+    """List all current ingestion jobs and their progress.
+
+    Useful to discover the correct job_id to poll with /ingest/status/{job_id}.
+    """
+    jobs = job_tracker.list_jobs()
+    return {
+        "jobs": [
+            {
+                "job_id": job.job_id,
+                "status": job.status.value,
+                "processed": job.processed,
+                "total": job.total,
+                "message": job.message,
+                "metadata": job.metadata,
+            }
+            for job in jobs.values()
+        ]
+    }
+
+
 @router.get("/status/{job_id}")
 async def get_status(job_id: str) -> dict:
     job = job_tracker.get_job(job_id)
