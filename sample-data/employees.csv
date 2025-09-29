@@ -1,0 +1,11 @@
+id,first_name,last_name,email,title,salary,hire_date,department
+1,Alice,Johnson,alice.johnson@example.com,HR Manager,85000,2023-01-15,HR
+2,Bob,Smith,bob.smith@example.com,Software Engineer,110000,2022-07-01,Engineering
+3,Carol,Lee,carol.lee@example.com,Sales Associate,75000,2024-03-10,Sales
+4,David,Kim,david.kim@example.com,Financial Analyst,90000,2021-11-20,Finance
+5,Eva,Patel,eva.patel@example.com,Senior Engineer,130000,2020-05-05,Engineering
+6,Frank,Wong,frank.wong@example.com,DevOps Engineer,120000,2023-06-18,Engineering
+7,Grace,Ng,grace.ng@example.com,Recruiter,78000,2022-02-01,HR
+8,Henry,Brown,henry.brown@example.com,Sales Manager,95000,2021-08-25,Sales
+9,Isha,Gupta,isha.gupta@example.com,Data Analyst,98000,2023-03-22,Finance
+10,Jon,Park,jon.park@example.com,Product Manager,115000,2022-11-11,Engineering
