@@ -1,0 +1,15 @@
+database:
+  connection_string: ${DATABASE_URL}
+  pool_size: 10
+  pool_timeout: 30
+embeddings:
+  model: sentence-transformers/all-MiniLM-L6-v2
+  batch_size: 32
+  device: cpu
+cache:
+  ttl_seconds: 300
+  max_size: 1000
+  backend: redis
+logging:
+  level: INFO
+  retention_days: 7
