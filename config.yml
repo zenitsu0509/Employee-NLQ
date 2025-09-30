@@ -13,3 +13,7 @@ cache:
 logging:
   level: INFO
   retention_days: 7
+# Groq LLM settings
+groq:
+  api_key: "API_KEY"  # Replace with your actual Groq API key
+  model: "llama3.1-8b-instruct"

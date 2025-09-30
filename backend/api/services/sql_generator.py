@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 
 @dataclass
@@ -23,6 +23,37 @@ class SQLGenerator:
         target_table = table or self._default_employee_table()
         if not target_table:
             return None
+
+        if ("how many" in normalized or "count" in normalized) and "employee" in normalized:
+            dept_match = re.search(r"in (the )?([a-z\s]+) department", normalized)
+            if not dept_match:
+                dept_match = re.search(r"in ([a-z\s]+)", normalized)
+
+            if dept_match:
+                dept_name = dept_match.group(2).strip()
+                # Find tables and join conditions
+                employees_table = self._find_table_by_synonym("employee")
+                departments_table = self._find_table_by_synonym("department")
+                
+                if employees_table and departments_table:
+                    relationship = self._find_relationship(employees_table, departments_table)
+                    if relationship:
+                        from_col = list(relationship["via_columns"].keys())[0]
+                        to_col = list(relationship["via_columns"].values())[0]
+                        
+                        # Find the name column in the departments table
+                        dept_name_col = self._find_column(departments_table, {"name"})
+
+                        if dept_name_col:
+                            return SQLQuery(
+                                sql=(
+                                    f"SELECT COUNT(e.*) as count FROM {employees_table} e "
+                                    f"JOIN {departments_table} d ON e.{from_col} = d.{to_col} "
+                                    f"WHERE lower(d.{dept_name_col}) = :dept_name"
+                                ),
+                                params={"dept_name": dept_name.lower()},
+                                description="Count of employees in a specific department",
+                            )
 
         if "how many" in normalized or "count" in normalized:
             return SQLQuery(
@@ -143,6 +174,34 @@ class SQLGenerator:
                     description="Employees filtered by skill and salary",
                 )
 
+        return None
+
+    def _find_table_by_synonym(self, table_synonym: str) -> Optional[str]:
+        """Finds the first table name that matches a synonym like 'employee' or 'department'."""
+        for table_data in self._schema.get("tables", []):
+            table_name = table_data["name"]
+            # Check table name itself
+            if table_synonym in table_name.lower():
+                return table_name
+            # Check synonyms for the table
+            if table_name in self._schema.get("synonyms", {}):
+                for syn in self._schema["synonyms"][table_name]:
+                    if table_synonym in syn:
+                        return table_name
+        return None
+
+    def _find_relationship(self, from_table: str, to_table: str) -> Optional[Dict[str, Any]]:
+        """Finds a relationship between two tables."""
+        for rel in self._schema.get("relationships", []):
+            if (rel["from_table"] == from_table and rel["to_table"] == to_table):
+                return rel
+            if (rel["from_table"] == to_table and rel["to_table"] == from_table):
+                # Reverse the relationship to make it usable
+                return {
+                    "from_table": to_table,
+                    "to_table": from_table,
+                    "via_columns": {v: k for k, v in rel["via_columns"].items()}
+                }
         return None
 
     def _default_employee_table(self) -> Optional[str]:

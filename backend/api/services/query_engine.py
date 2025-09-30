@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import time
 from dataclasses import asdict, dataclass
+from decimal import Decimal
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
-
+import time 
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import text
@@ -19,6 +20,7 @@ from backend.api.services.query_history import QueryHistory
 from backend.api.services.schema_discovery import SchemaDiscovery
 from backend.api.services.sql_generator import SQLGenerator
 from backend.api.services.vector_store import VectorStore
+from backend.api.services.groq_sql_generator import GroqSQLGenerator
 
 
 @dataclass
@@ -38,7 +40,7 @@ class QueryEngine:
         self._settings = get_settings()
         self.schema_discovery = SchemaDiscovery()
         self.schema = self.schema_discovery.analyze_database(connection_string)
-        self.sql_generator = SQLGenerator(self.schema)
+        self.sql_generator = GroqSQLGenerator(self.schema)
         self.classifier = QueryClassifier()
         self.cache = TTLCache(
             ttl_seconds=self._settings.cache.ttl_seconds,
@@ -112,7 +114,7 @@ class QueryEngine:
 
     def refresh_schema(self) -> Dict[str, Any]:
         self.schema = self.schema_discovery.analyze_database(self._connection_string)
-        self.sql_generator = SQLGenerator(self.schema)
+        self.sql_generator = GroqSQLGenerator(self.schema)
         return self.schema
 
     def optimize_sql_query(self, sql: str) -> str:
@@ -120,6 +122,24 @@ class QueryEngine:
         if "limit" not in optimized.lower():
             optimized = f"{optimized} LIMIT 100"
         return optimized
+
+    def _convert_row(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert row values to JSON-serializable types."""
+        new_row: Dict[str, Any] = {}
+        for key, value in row.items():
+            if isinstance(value, Decimal):
+                new_row[key] = float(value)
+            elif isinstance(value, (date, datetime)):
+                new_row[key] = value.isoformat()
+            elif isinstance(value, (np.integer,)):
+                new_row[key] = int(value)
+            elif isinstance(value, (np.floating,)):
+                new_row[key] = float(value)
+            elif isinstance(value, (bytes, bytearray, memoryview)):
+                new_row[key] = value.decode("utf-8", errors="replace")
+            else:
+                new_row[key] = value
+        return new_row
 
     def _execute_sql_query(self, user_query: str) -> List[Dict[str, Any]]:
         mapping = self.schema_discovery.map_natural_language_to_schema(user_query, self.schema)
@@ -131,7 +151,7 @@ class QueryEngine:
         sql = self.optimize_sql_query(sql_plan.sql)
         with get_connection(self._connection_string) as conn:
             result = conn.execute(text(sql), sql_plan.params)
-            rows = [dict(row._mapping) for row in result]
+            rows = [self._convert_row(dict(row._mapping)) for row in result]
         return rows
 
     def _search_documents(self, query: str, top_k: int) -> List[Dict[str, Any]]:

@@ -27,6 +27,11 @@ class CacheConfig(BaseModel):
     backend: str = Field(default="memory")
 
 
+class GroqConfig(BaseModel):
+    api_key: str
+    model: str = "llama3-8b-8192"
+
+
 class LoggingConfig(BaseModel):
     level: str = Field(default="INFO")
     retention_days: int = Field(default=7, ge=1)
@@ -36,6 +41,7 @@ class Settings(BaseModel):
     database: DatabaseConfig = DatabaseConfig()
     embeddings: EmbeddingsConfig = EmbeddingsConfig()
     cache: CacheConfig = CacheConfig()
+    groq: Optional[GroqConfig] = None
     logging: LoggingConfig = LoggingConfig()
 
 

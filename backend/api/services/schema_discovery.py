@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from datetime import date, datetime, time
+from decimal import Decimal
 from typing import Any, Dict, List, Set
 
 from sqlalchemy import inspect, text
@@ -93,7 +95,22 @@ class SchemaDiscovery:
         preparer = conn.dialect.identifier_preparer
         query = text(f"SELECT * FROM {preparer.quote_identifier(table)} LIMIT :limit")
         result = conn.execute(query, {"limit": limit})
-        return [dict(row._mapping) for row in result]
+        return [self._convert_row_values(dict(row._mapping)) for row in result]
+
+    def _convert_row_values(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert row values to JSON-serializable types."""
+        new_row: Dict[str, Any] = {}
+        for key, value in row.items():
+            if isinstance(value, Decimal):
+                new_row[key] = float(value)
+            elif isinstance(value, (date, datetime, time)):
+                if isinstance(value, (date, datetime)):
+                    new_row[key] = value.isoformat()
+                else:
+                    new_row[key] = value.strftime("%H:%M:%S")
+            else:
+                new_row[key] = value
+        return new_row
 
     def _build_synonym_map(self, tables: List[Dict[str, Any]]) -> Dict[str, Set[str]]:
         table_map: Dict[str, Set[str]] = {}
