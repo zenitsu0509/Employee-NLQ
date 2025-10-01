@@ -118,9 +118,21 @@ class QueryEngine:
         return self.schema
 
     def optimize_sql_query(self, sql: str) -> str:
+        """Add LIMIT clause if missing to prevent large result sets (SELECT only)."""
         optimized = sql.strip()
-        if "limit" not in optimized.lower():
+        
+        # Remove trailing semicolon if present
+        if optimized.endswith(';'):
+            optimized = optimized[:-1].strip()
+        
+        # Check if this is a data modification statement
+        sql_upper = optimized.upper()
+        is_dml = any(sql_upper.startswith(keyword) for keyword in ['UPDATE', 'INSERT', 'DELETE', 'CREATE', 'DROP', 'ALTER'])
+        
+        # Only add LIMIT for SELECT queries
+        if not is_dml and "limit" not in optimized.lower():
             optimized = f"{optimized} LIMIT 100"
+        
         return optimized
 
     def _convert_row(self, row: Dict[str, Any]) -> Dict[str, Any]:
@@ -144,13 +156,25 @@ class QueryEngine:
     def _execute_sql_query(self, user_query: str) -> List[Dict[str, Any]]:
         mapping = self.schema_discovery.map_natural_language_to_schema(user_query, self.schema)
         table = mapping.get("likely_tables", [None])[0]
+        print(f"[QueryEngine] Likely table for query '{user_query}': {table}")
+        
         sql_plan = self.sql_generator.generate(user_query, table=table)
         if not sql_plan:
+            print(f"[QueryEngine] No SQL plan generated for query: {user_query}")
             return []
 
+        print(f"[QueryEngine] Executing SQL: {sql_plan.sql}")
         sql = self.optimize_sql_query(sql_plan.sql)
+        
         with get_connection(self._connection_string) as conn:
             result = conn.execute(text(sql), sql_plan.params)
+            
+            # For DML operations (UPDATE, INSERT, DELETE), return affected row count
+            if result.rowcount >= 0 and not result.returns_rows:
+                conn.commit()
+                return [{"affected_rows": result.rowcount, "status": "success"}]
+            
+            # For SELECT queries, return the actual rows
             rows = [self._convert_row(dict(row._mapping)) for row in result]
         return rows
 
