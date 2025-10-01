@@ -32,13 +32,13 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r ../requirements.txt
 ```
 
-2. **Run the FastAPI server:**
+1. **Run the FastAPI server:**
 
 ```bash
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-3. **Test the API:**
+1. **Test the API:**
 
 ```bash
 curl http://localhost:8000/health
@@ -53,13 +53,13 @@ cd frontend
 npm install
 ```
 
-2. **Start the development server:**
+1. **Start the development server:**
 
 ```bash
 npm run dev
 ```
 
-3. **Access the web interface:**
+1. **Access the web interface:**
 
 Open <http://localhost:5173> in your browser
 
