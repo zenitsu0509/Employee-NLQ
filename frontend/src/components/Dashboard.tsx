@@ -425,11 +425,18 @@ export const Dashboard = () => {
             >
               Run query
             </Button>
-            <Stack direction="row" spacing={1}>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center", width: "100%" }}>
               {QUERY_SUGGESTIONS.map((suggestion) => (
-                <Chip key={suggestion} label={suggestion} onClick={() => setQueryText(suggestion)} clickable size="small" />
+                <Chip
+                  key={suggestion}
+                  label={suggestion}
+                  onClick={() => setQueryText(suggestion)}
+                  clickable
+                  size="small"
+                  sx={{ mr: 0, mb: 1 }}
+                />
               ))}
-            </Stack>
+            </Box>
           </Stack>
           {queryLoading ? <LinearProgress /> : null}
           {queryError ? <Alert severity="error">{queryError}</Alert> : null}
