@@ -1,0 +1,21 @@
+employee_id,skill,proficiency
+1,Recruiting,Advanced
+1,Onboarding,Intermediate
+2,Python,Advanced
+2,Docker,Advanced
+2,AWS,Intermediate
+3,CRM,Intermediate
+3,Negotiation,Advanced
+4,Excel,Advanced
+4,Financial Modeling,Advanced
+5,Go,Intermediate
+5,Distributed Systems,Advanced
+6,CI/CD,Advanced
+6,Kubernetes,Intermediate
+7,Interviewing,Advanced
+8,Sales Strategy,Advanced
+8,Presentation,Advanced
+9,SQL,Advanced
+9,Data Visualization,Intermediate
+10,Product Management,Advanced
+10,Agile,Advanced
