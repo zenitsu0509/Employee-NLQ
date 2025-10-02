@@ -43,7 +43,8 @@ class VectorStore:
             return []
         with self._lock:
             distances, indices = self._index.search(embedding.astype("float32"), top_k)
-            return [self._chunks[idx] for idx in indices[0] if idx < len(self._chunks)]
+            # Filter out invalid indices: FAISS returns -1 when not enough results
+            return [self._chunks[idx] for idx in indices[0] if 0 <= idx < len(self._chunks)]
 
     def clear(self) -> None:
         with self._lock:

@@ -97,6 +97,26 @@ curl -X POST http://localhost:8000/api/ingest/documents \
   -F "connection_string=postgresql+psycopg://user:password@localhost:5432/employees"
 ```
 
+#### CSV upload (sample data)
+
+You can quickly test CSV uploads using the provided sample files in `sample-data/`:
+
+```bash
+curl -X POST http://localhost:8000/api/ingest/documents \
+  -F "files=@sample-data/employees.csv" \
+  -F "files=@sample-data/departments.csv" \
+  -F "files=@sample-data/salaries.csv" \
+  -F "files=@sample-data/skills.csv" \
+  -F "connection_string=postgresql+psycopg://user:password@localhost:5432/employees"
+```
+
+Then poll the ingestion job status:
+
+```bash
+curl -s http://localhost:8000/api/ingest/jobs | jq
+```
+
+
 ### 3. Query Your Data
 
 ```bash

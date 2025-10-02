@@ -81,6 +81,8 @@ class DocumentProcessor:
             return self._chunk_by_sections(content, ["section", "clause", "article"], max_chars=1200)
         if doc_type == "review":
             return self._chunk_paragraphs(content, max_chars=600)
+        if doc_type == "table":
+            return self._chunk_csv_rows(content, max_rows_per_chunk=10)
         return self._chunk_sentences(content, max_chars=800)
 
     # Extraction helpers
@@ -203,6 +205,23 @@ class DocumentProcessor:
         if sentence:
             sentences.append("".join(sentence).strip())
         return sentences
+
+    def _chunk_csv_rows(self, content: str, max_rows_per_chunk: int = 10) -> List[str]:
+        """Chunk CSV content by preserving header + batches of rows."""
+        lines = content.strip().splitlines()
+        if not lines:
+            return []
+        
+        header = lines[0] if lines else ""
+        data_rows = lines[1:]
+        
+        chunks: List[str] = []
+        for start in range(0, len(data_rows), max_rows_per_chunk):
+            batch_rows = data_rows[start:start + max_rows_per_chunk]
+            chunk = "\n".join([header] + batch_rows)
+            chunks.append(chunk)
+        
+        return chunks if chunks else [content]
 
     def _embed_chunks(self, chunks: List[str]) -> np.ndarray:
         embeddings: List[np.ndarray] = []
