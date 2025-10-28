@@ -4,6 +4,7 @@ This project delivers a full-stack AI-powered query system that can ingest emplo
 
 ## Project Overview
 
+
 - **Backend**: FastAPI service providing ingestion, schema discovery, and query endpoints
 - **Frontend**: React application for database configuration, document uploads, query interface, and analytics
 - **Document Processing**: Multi-format ingestion with adaptive chunking and embedding generation
