@@ -15,5 +15,9 @@ logging:
   retention_days: 7
 # Groq LLM settings
 groq:
-  api_key: "API_KEY"  # Replace with your actual Groq API key
-  model: "llama3.1-8b-instruct"
+  # provider can be 'groq' or 'openai'
+  provider: groq
+  # Use your Groq API key from environment
+  api_key: "${GROQ_API_KEY}"
+  
+  model: "gpt-oss-120b"
