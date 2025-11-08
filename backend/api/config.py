@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -28,8 +29,12 @@ class CacheConfig(BaseModel):
 
 
 class GroqConfig(BaseModel):
+    # Provider can be 'groq' (default) or 'openai'.
+    provider: str = Field(default="groq")
     api_key: str
-    model: str = "llama3-8b-8192"
+    # Default to a currently available Groq Llama 3.1 instant model.
+    # Note: Keep the hyphen after 'llama' (e.g., 'llama-3.1-8b-instant').
+    model: str = Field(default="llama-3.1-8b-instant")
 
 
 class LoggingConfig(BaseModel):
@@ -49,11 +54,43 @@ def _load_yaml_config(path: Path) -> dict:
     if not path.exists():
         return {}
     with path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle) or {}
+        raw = yaml.safe_load(handle) or {}
+    # Interpolate environment variables like ${VAR}
+    pattern = re.compile(r"\$\{([^}]+)\}")
+
+    def interpolate(value):
+        if isinstance(value, str):
+            def repl(match):
+                var = match.group(1)
+                return os.getenv(var, match.group(0))
+            return pattern.sub(repl, value)
+        return value
+
+    def walk(obj):
+        if isinstance(obj, dict):
+            return {k: walk(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [walk(v) for v in obj]
+        return interpolate(obj)
+
+    return walk(raw)
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     config_path = Path(os.getenv("CONFIG_PATH", Path.cwd() / "config.yml"))
     raw = _load_yaml_config(config_path)
-    return Settings.model_validate(raw)
+    settings = Settings.model_validate(raw)
+    # Simple runtime validation / guidance for common Groq model typos
+    if settings.groq and settings.groq.model and settings.groq.model.startswith("llama3"):
+        # User likely forgot the hyphen after 'llama'
+        print(
+            f"[config] WARNING: Groq model '{settings.groq.model}' looks malformed. Did you mean 'llama-3.1-8b-instant' or another hyphenated form?"
+        )
+    return settings
+
+
+def reload_settings() -> Settings:
+    """Invalidate cache and reload settings, useful after editing config.yml."""
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+    return get_settings()
