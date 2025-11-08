@@ -243,4 +243,19 @@ frontend/src/
   - Fix: Use a connection string that explicitly selects psycopg v3: `postgresql+psycopg://user:password@host:5432/dbname`.
   - Optional: You could install `psycopg2-binary`, but psycopg2 may not support the newest Python versions promptly (e.g. 3.13). Prefer psycopg v3.
 
+- psycopg import errors on Windows (psycopg v3): "couldn't import psycopg 'c'/'binary' implementation" or "libpq library not found"
+  - Cause: Base `psycopg` package tries to load a compiled implementation and falls back to a pure-Python variant which requires `libpq` on your system. On Windows, `libpq` typically isn't present by default.
+  - Fix: Install the binary wheel that bundles `libpq`.
+    - We pin this in `requirements.txt` as: `psycopg[binary]==3.2.3`.
+    - If you already installed dependencies before this change, update your venv:
+
+      ```bash
+      # from repo root, using the existing .venv
+      source .venv/Scripts/activate  # on Windows bash; PowerShell: .venv\\Scripts\\Activate.ps1
+      pip uninstall -y psycopg2 psycopg2-binary || true
+      pip install --upgrade "psycopg[binary]==3.2.3"
+      ```
+
+  - Ensure your connection string uses psycopg v3: `postgresql+psycopg://...` (not `postgresql://` and not `+psycopg2`).
+
 
