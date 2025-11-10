@@ -145,6 +145,8 @@ standard-aifc==3.13.0
 standard-chunk==3.13.0
 standard-sunau==3.13.0
 starlette==0.47.2
+redis==5.2.1
+rq==1.16.2
 sympy==1.14.0
 threadpoolctl==3.6.0
 timm==1.0.19

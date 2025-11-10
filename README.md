@@ -33,10 +33,28 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r ../requirements.txt
 ```
 
-1. **Run the FastAPI server:**
+1. **Run the FastAPI server (dev):**
 
 ```bash
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+2. **(Optional) Enable background workers with Redis**
+
+- Set in `config.yml`:
+
+```yaml
+queue:
+  enabled: true
+  redis_url: "redis://localhost:6379/0"
+  queue_name: "ingestion"
+```
+
+- Start Redis and a worker in another shell:
+
+```bash
+# Start worker using config.yml
+python backend/worker.py
 ```
 
 1. **Test the API:**
@@ -78,6 +96,22 @@ This starts:
 - Frontend UI: <http://localhost:5173>
 - PostgreSQL: localhost:5432
 - Redis: localhost:6379
+
+### Persistent Vector Store (PgVector)
+
+To persist embeddings and enable scalable semantic search, you can switch the vector store to PgVector.
+
+1. Ensure your Postgres has the `pgvector` extension installed.
+2. Update `config.yml`:
+
+```yaml
+vector_store:
+  type: pgvector
+  connection_string: ${VECTOR_DB_URL}  # e.g., postgresql+psycopg://user:pass@localhost:5432/embeddings
+  table_name: document_chunks
+```
+
+If the PgVector initialization fails, the app will fall back to the in-memory FAISS store.
 
 ## Usage Examples
 

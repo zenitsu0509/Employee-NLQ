@@ -6,14 +6,39 @@ from tempfile import NamedTemporaryFile
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile, status
+from backend.api.config import get_settings
+
+try:
+    from rq import Queue
+    from redis import Redis
+except Exception:  # pragma: no cover - optional at dev time
+    Queue = None  # type: ignore
+    Redis = None  # type: ignore
 
 from backend.api.models.requests import DatabaseConnectionRequest
 from backend.api.models.responses import DocumentIngestionResponse
 from backend.api.services.engine_registry import get_registry
-from backend.api.services.job_tracker import JobStatus, JobTracker
+from backend.api.services.job_tracker import JobStatus, JobTracker, RedisJobTracker
 
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
-job_tracker = JobTracker()
+if _settings.queue.enabled and Redis is not None:
+    try:
+        _redis_conn = Redis.from_url(_settings.queue.redis_url)
+        job_tracker = RedisJobTracker(_redis_conn)
+        print(f"[ingestion] Using RedisJobTracker at {_settings.queue.redis_url}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[ingestion] Failed to init RedisJobTracker, fallback to in-memory: {exc}")
+        job_tracker = JobTracker()
+else:
+    job_tracker = JobTracker()
+_settings = get_settings()
+_queue = None
+if _settings.queue.enabled and Queue and Redis:
+    try:
+        _queue = Queue(_settings.queue.queue_name, connection=Redis.from_url(_settings.queue.redis_url))
+        print(f"[ingestion] Using Redis queue '{_settings.queue.queue_name}' at {_settings.queue.redis_url}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[ingestion] Failed to connect to Redis queue: {exc}")
 
 
 @router.post("/database")
@@ -56,7 +81,10 @@ async def upload_documents(
             temp.write(contents)
             temp_paths.append(temp.name)
 
-    background_tasks.add_task(_process_documents_job, connection_string, temp_paths, job.job_id)
+    if _queue is not None:
+        _queue.enqueue(_process_documents_job, connection_string, temp_paths, job.job_id)
+    else:
+        background_tasks.add_task(_process_documents_job, connection_string, temp_paths, job.job_id)
 
     return DocumentIngestionResponse(
         job_id=job.job_id,

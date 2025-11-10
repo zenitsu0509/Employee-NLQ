@@ -21,3 +21,17 @@ groq:
   api_key: "${GROQ_API_KEY}"
   
   model: "gpt-oss-120b"
+
+# Background queue (Redis + RQ) configuration
+queue:
+  enabled: true
+  redis_url: redis://localhost:6379/0
+  queue_name: ingestion
+
+# Vector store configuration
+vector_store:
+  # faiss (in-memory) or pgvector
+  type: faiss
+  # Only for pgvector; will default to DATABASE_URL if omitted
+  connection_string: ${VECTOR_DB_URL}
+  table_name: document_chunks

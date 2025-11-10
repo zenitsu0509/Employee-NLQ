@@ -28,6 +28,20 @@ class CacheConfig(BaseModel):
     backend: str = Field(default="memory")
 
 
+class QueueConfig(BaseModel):
+    enabled: bool = Field(default=False)
+    redis_url: str = Field(default="redis://localhost:6379/0")
+    queue_name: str = Field(default="ingestion")
+
+
+class VectorStoreConfig(BaseModel):
+    # type: 'faiss' (in-memory, current default) or 'pgvector'
+    type: str = Field(default="faiss")
+    # Only used for pgvector
+    connection_string: Optional[str] = Field(default=None)
+    table_name: str = Field(default="document_chunks")
+
+
 class GroqConfig(BaseModel):
     # Provider can be 'groq' (default) or 'openai'.
     provider: str = Field(default="groq")
@@ -46,6 +60,8 @@ class Settings(BaseModel):
     database: DatabaseConfig = DatabaseConfig()
     embeddings: EmbeddingsConfig = EmbeddingsConfig()
     cache: CacheConfig = CacheConfig()
+    queue: QueueConfig = QueueConfig()
+    vector_store: VectorStoreConfig = VectorStoreConfig()
     groq: Optional[GroqConfig] = None
     logging: LoggingConfig = LoggingConfig()
 

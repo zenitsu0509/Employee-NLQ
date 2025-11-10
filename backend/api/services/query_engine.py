@@ -20,6 +20,8 @@ from backend.api.services.query_history import QueryHistory
 from backend.api.services.schema_discovery import SchemaDiscovery
 from backend.api.services.sql_generator import SQLGenerator
 from backend.api.services.vector_store import VectorStore
+from backend.api.services.pgvector_store import PgVectorStore
+from sqlalchemy import create_engine as _create_engine
 from backend.api.services.groq_sql_generator import GroqSQLGenerator
 
 
@@ -49,7 +51,17 @@ class QueryEngine:
         self.history = QueryHistory()
 
         self._embedder = SentenceTransformer(self._settings.embeddings.model, device=self._settings.embeddings.device)
-        self._vector_store = VectorStore(self._embedder.get_sentence_embedding_dimension())
+        dimension = self._embedder.get_sentence_embedding_dimension()
+        if self._settings.vector_store.type == "pgvector" and self._settings.vector_store.connection_string:
+            try:
+                pg_engine = _create_engine(self._settings.vector_store.connection_string)
+                self._vector_store = PgVectorStore(pg_engine, self._settings.vector_store.table_name, dimension)
+                print(f"[QueryEngine] Using PgVectorStore at {self._settings.vector_store.connection_string}")
+            except Exception as exc:  # noqa: BLE001
+                print(f"[QueryEngine] Failed to init PgVectorStore, falling back to in-memory: {exc}")
+                self._vector_store = VectorStore(dimension)
+        else:
+            self._vector_store = VectorStore(dimension)
         self.document_processor = DocumentProcessor(
             self._vector_store,
             model=self._embedder,
