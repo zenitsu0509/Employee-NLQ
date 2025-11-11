@@ -151,6 +151,23 @@ Then poll the ingestion job status:
 curl -s http://localhost:8000/api/ingest/jobs | jq
 ```
 
+### 2b. Import tabular data (CSV/Excel) into your database
+
+You can upload CSV/XLSX files and have the backend create/append tables in your Postgres (e.g., Neon/Supabase).
+
+```bash
+curl -X POST http://localhost:8000/api/ingest/tabular \
+  -F "files=@sample-data/employees.csv" \
+  -F "files=@sample-data/departments.csv" \
+  -F "connection_string=${DATABASE_URL}" \
+  -F "if_exists=append"            # or replace|fail \
+  -F "table_name="                 # optional; defaults to sanitized filename \
+  -F "delimiter=,"                 # optional for CSV; default , (.tsv uses \t) \
+  -F "sheet_name=Sheet1"           # optional for Excel
+```
+
+This returns a job id you can monitor with `/api/ingest/jobs`. Large CSVs are loaded in chunks to avoid memory spikes. By default, tables are appended; use `if_exists=replace` to overwrite.
+
 
 ### 3. Query Your Data
 

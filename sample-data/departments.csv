@@ -1,5 +1,2 @@
 department_id,name,manager_id,location
-101,Engineering,10,San Francisco
-102,HR,1,New York
-103,Sales,8,Chicago
-104,Finance,4,Boston
+104,Finance,3,Boston

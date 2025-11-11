@@ -24,7 +24,7 @@ groq:
 
 # Background queue (Redis + RQ) configuration
 queue:
-  enabled: true
+  enabled: false
   redis_url: redis://localhost:6379/0
   queue_name: ingestion
 

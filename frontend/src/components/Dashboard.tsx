@@ -107,6 +107,13 @@ export const Dashboard = () => {
 
   const [uploading, setUploading] = useState(false);
   const [jobStatus, setJobStatus] = useState<JobStatusResponse | null>(null);
+  // Tabular import state
+  const [tabImporting, setTabImporting] = useState(false);
+  const [tabJobStatus, setTabJobStatus] = useState<JobStatusResponse | null>(null);
+  const [ifExists, setIfExists] = useState<'append' | 'replace' | 'fail'>('append');
+  const [tableName, setTableName] = useState<string>("");
+  const [delimiter, setDelimiter] = useState<string>(",");
+  const [sheetName, setSheetName] = useState<string>("");
 
   const [queryText, setQueryText] = useState(QUERY_SUGGESTIONS[0]);
   const [queryLoading, setQueryLoading] = useState(false);
@@ -116,6 +123,7 @@ export const Dashboard = () => {
   const [history, setHistory] = useState<HistoryRecord[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const tabularFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -143,6 +151,21 @@ export const Dashboard = () => {
 
     return () => window.clearInterval(interval);
   }, [jobStatus]);
+
+  useEffect(() => {
+    if (!tabJobStatus || tabJobStatus.status === "completed" || tabJobStatus.status === "failed") {
+      return;
+    }
+
+    const interval = window.setInterval(async () => {
+      const nextStatus = await fetchJobStatus(tabJobStatus.job_id);
+      if (nextStatus) {
+        setTabJobStatus(nextStatus);
+      }
+    }, 2_000);
+
+    return () => window.clearInterval(interval);
+  }, [tabJobStatus]);
 
   useEffect(() => {
     if (!connectionString) {
@@ -201,6 +224,7 @@ export const Dashboard = () => {
   };
 
   const handleFileButtonClick = () => fileInputRef.current?.click();
+  const handleTabularFileButtonClick = () => tabularFileInputRef.current?.click();
 
   const handleFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -268,6 +292,51 @@ export const Dashboard = () => {
       setQueryError(axios.isAxiosError(error) ? error.response?.data?.detail ?? error.message : String(error));
     } finally {
       setQueryLoading(false);
+    }
+  };
+
+  const handleTabularFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    if (!connectionString) {
+      setConnectionError("Connect to the database before importing tabular data.");
+      return;
+    }
+
+    const formData = new FormData();
+    Array.from(files).forEach((file) => formData.append("files", file));
+    formData.append("connection_string", connectionString);
+    formData.append("if_exists", ifExists);
+    if (tableName) formData.append("table_name", tableName);
+    if (delimiter) formData.append("delimiter", delimiter);
+    if (sheetName) formData.append("sheet_name", sheetName);
+
+    setTabImporting(true);
+    setTabJobStatus(null);
+    try {
+      const { data } = await api.post<{
+        job_id: string;
+        status: string;
+        processed: number;
+        total_files: number;
+      }>("/api/ingest/tabular", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setTabJobStatus({
+        job_id: data.job_id,
+        status: data.status,
+        processed: data.processed,
+        total: data.total_files,
+        message: null
+      });
+    } catch (error) {
+      setConnectionError(axios.isAxiosError(error) ? error.response?.data?.detail ?? error.message : String(error));
+    } finally {
+      setTabImporting(false);
+      if (tabularFileInputRef.current) tabularFileInputRef.current.value = "";
     }
   };
 
@@ -370,8 +439,77 @@ export const Dashboard = () => {
         <Grid item xs={12} md={6}>
           <Paper elevation={1} sx={{ p: 3, height: "100%" }}>
             <Typography variant="h6" gutterBottom>
-              Recent Query History
+              2b. Tabular Import (CSV/Excel)
             </Typography>
+            <Stack spacing={2}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'flex-end' }}>
+                <TextField
+                  label="Table name (optional)"
+                  value={tableName}
+                  onChange={(e) => setTableName(e.target.value)}
+                />
+                <TextField
+                  label="Delimiter (CSV)"
+                  value={delimiter}
+                  onChange={(e) => setDelimiter(e.target.value)}
+                  sx={{ width: 140 }}
+                />
+                <TextField
+                  label="Sheet name (Excel)"
+                  value={sheetName}
+                  onChange={(e) => setSheetName(e.target.value)}
+                />
+                <TextField
+                  label="If exists"
+                  value={ifExists}
+                  onChange={(e) => setIfExists(e.target.value as any)}
+                  select
+                  SelectProps={{ native: true }}
+                  sx={{ width: 160 }}
+                >
+                  <option value="append">append</option>
+                  <option value="replace">replace</option>
+                  <option value="fail">fail</option>
+                </TextField>
+                <Button
+                  variant="outlined"
+                  startIcon={<CloudUploadIcon />}
+                  onClick={handleTabularFileButtonClick}
+                  disabled={!connectionString || tabImporting}
+                >
+                  Select CSV/XLSX
+                </Button>
+                <input
+                  type="file"
+                  hidden
+                  multiple
+                  ref={tabularFileInputRef}
+                  onChange={handleTabularFileSelected}
+                  accept=".csv,.tsv,.xlsx,.xlsm,.xltx,.xltm"
+                />
+              </Stack>
+              {tabImporting ? <LinearProgress /> : null}
+              {tabJobStatus ? (
+                <Alert severity={tabJobStatus.status === "failed" ? "error" : "info"}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="subtitle2">Status:</Typography>
+                    <Chip
+                      label={tabJobStatus.status.toUpperCase()}
+                      color={tabJobStatus.status === "completed" ? "success" : tabJobStatus.status === "failed" ? "error" : "info"}
+                      size="small"
+                    />
+                    <Typography variant="body2">
+                      {tabJobStatus.processed}/{tabJobStatus.total} processed
+                    </Typography>
+                    {tabJobStatus.message ? <Typography variant="body2">• {tabJobStatus.message}</Typography> : null}
+                  </Stack>
+                </Alert>
+              ) : null}
+              <Divider />
+              <Typography variant="h6" gutterBottom>
+                Recent Query History
+              </Typography>
+            </Stack>
             {history.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 Run a query to see history.
