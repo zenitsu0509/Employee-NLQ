@@ -2,10 +2,10 @@ version: "3.9"
 
 services:
   backend:
-    build: ./backend
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend:/app
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: /app/start.sh
     env_file:
       - .env
     ports:
@@ -15,15 +15,13 @@ services:
       - redis
 
   frontend:
-    build: ./frontend
-    command: npm run dev -- --host 0.0.0.0 --port 5173
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8000
     ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8000
+      - "5173:80"
     depends_on:
       - backend
 
@@ -44,6 +42,19 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+  # Optional background worker (Redis RQ). Enable queue.enabled=true in config.yml
+  # before using this service.
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "-m", "backend.worker"]
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - backend
 
 volumes:
   postgres-data:
