@@ -72,9 +72,9 @@ jobs:
           registryPassword: ${{ secrets.ACR_PASSWORD }}
           environmentVariables: |
             DATABASE_URL=${{ secrets.DATABASE_URL }}
-            VECTOR_DB_URL=${{ secrets.VECTOR_DB_URL }}
+            VECTOR_DB_URL=${{ secrets.VECTOR_DB_URL || secrets.DATABASE_URL }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-            CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS || secrets.CONS_ORIGIN }}
 
       # Uncomment to deploy worker (no ingress)
       # - name: Deploy to Azure Container Apps (worker)
