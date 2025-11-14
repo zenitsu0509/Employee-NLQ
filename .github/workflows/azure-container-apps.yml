@@ -58,6 +58,38 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Ensure providers and Container Apps environment exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          RG="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          ENV_NAME="${{ secrets.ACA_ENV_NAME }}"
+          LOCATION="${{ secrets.ACA_LOCATION }}"
+          if [[ -z "$LOCATION" ]]; then LOCATION="westus2"; fi
+
+          echo "Registering resource providers (Microsoft.App, Microsoft.OperationalInsights)..."
+          az provider register -n Microsoft.App --wait || true
+          az provider register -n Microsoft.OperationalInsights --wait || true
+
+          echo "Installing/upgrading containerapp CLI extension..."
+          az extension add --name containerapp --upgrade || true
+
+          echo "Checking Container Apps environment '$ENV_NAME' in RG '$RG'..."
+          if ! az containerapp env show -g "$RG" -n "$ENV_NAME" >/dev/null 2>&1; then
+            LAW_NAME="law-${ENV_NAME}"
+            echo "Ensuring Log Analytics workspace '$LAW_NAME' in '$LOCATION'..."
+            if ! az monitor log-analytics workspace show -g "$RG" -n "$LAW_NAME" >/dev/null 2>&1; then
+              az monitor log-analytics workspace create -g "$RG" -n "$LAW_NAME" -l "$LOCATION"
+            fi
+            LAW_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$LAW_NAME" --query customerId -o tsv)
+            LAW_KEY=$(az monitor log-analytics workspace get-shared-keys -g "$RG" -n "$LAW_NAME" --query primarySharedKey -o tsv)
+            echo "Creating Container Apps environment '$ENV_NAME' in '$LOCATION'..."
+            az containerapp env create -g "$RG" -n "$ENV_NAME" -l "$LOCATION" \
+              --logs-workspace-id "$LAW_ID" --logs-workspace-key "$LAW_KEY"
+          else
+            echo "Container Apps environment '$ENV_NAME' already exists."
+          fi
+
       - name: Deploy to Azure Container Apps (backend)
         uses: azure/container-apps-deploy-action@v2
         with:
@@ -74,7 +106,7 @@ jobs:
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             VECTOR_DB_URL=${{ secrets.VECTOR_DB_URL || secrets.DATABASE_URL }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-            CORS_ORIGINS=${{ secrets.CORS_ORIGINS || secrets.CONS_ORIGIN }}
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS || secrets.CONS_ORIGINS || secrets.CONS_ORIGIN }}
 
       # Uncomment to deploy worker (no ingress)
       # - name: Deploy to Azure Container Apps (worker)
