@@ -281,15 +281,34 @@ export const Dashboard = () => {
     setQueryError(null);
     try {
       const normalized = normalizeConnectionString(connectionString);
-      const { data } = await api.post<QueryResponse>("/api/query", {
+      const { data } = await api.post("/api/query", {
         connection_string: normalized,
         query: queryText.trim(),
         top_k: 10
       });
+
+      if (!isValidQueryResponse(data)) {
+        const fallbackDetail =
+          typeof (data as Record<string, unknown>)?.detail === "string"
+            ? (data as Record<string, string>).detail
+            : "Unexpected response from query API.";
+        throw new Error(fallbackDetail);
+      }
+
       setQueryResult(data);
       void fetchHistory(normalized).then((records) => records && setHistory(records));
     } catch (error) {
-      setQueryError(axios.isAxiosError(error) ? error.response?.data?.detail ?? error.message : String(error));
+      if (axios.isAxiosError(error)) {
+        const responseDetail =
+          typeof error.response?.data?.detail === "string"
+            ? error.response?.data?.detail
+            : typeof error.response?.data?.message === "string"
+              ? error.response.data.message
+              : error.message;
+        setQueryError(responseDetail);
+        return;
+      }
+      setQueryError(error instanceof Error ? error.message : String(error));
     } finally {
       setQueryLoading(false);
     }
@@ -790,6 +809,20 @@ const fetchJobStatus = async (jobId: string) => {
     return null;
   }
 };
+
+function isValidQueryResponse(payload: unknown): payload is QueryResponse {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  const candidate = payload as Record<string, unknown>;
+  return (
+    typeof candidate.query === "string" &&
+    typeof candidate.query_type === "string" &&
+    Array.isArray(candidate.results) &&
+    typeof candidate.metrics === "object" &&
+    candidate.metrics !== null
+  );
+}
 
 function normalizeConnectionString(input: string): string {
   // Ensure postgres URLs use psycopg v3 driver

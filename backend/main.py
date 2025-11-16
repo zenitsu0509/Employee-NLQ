@@ -45,9 +45,16 @@ default_origins = [
 ]
 
 env_origins = os.environ.get("CORS_ORIGINS", "").strip()
-allowed_origins = (
-    [o.strip() for o in env_origins.split(",") if o.strip()] if env_origins else default_origins
-)
+if env_origins:
+    allowed_origins = []
+    for raw_origin in env_origins.split(","):
+        cleaned = raw_origin.strip().rstrip("/")
+        if cleaned:
+            allowed_origins.append(cleaned)
+    if not allowed_origins:
+        allowed_origins = default_origins
+else:
+    allowed_origins = default_origins
 
 app.add_middleware(
     CORSMiddleware,
