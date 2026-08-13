@@ -9,11 +9,11 @@ embeddings:
 cache:
   ttl_seconds: 300
   max_size: 1000
-  backend: redis
+  backend: memory
 logging:
   level: INFO
   retention_days: 7
 # Groq LLM settings
 groq:
-  api_key: "API_KEY"  # Replace with your actual Groq API key
-  model: "llama3.1-8b-instruct"
+  api_key: ${GROQ_API_KEY}
+  model: "openai/gpt-oss-120b"

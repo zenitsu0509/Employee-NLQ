@@ -1,0 +1,46 @@
+SQL-only (employees table)
+How many employees do we have?
+Show the first 10 employees.
+List all titles and how many employees hold each title.
+What’s the average salary across the company?
+What is the highest salary and who earns it?
+Show the top 5 highest-paid employees with their department and salary.
+Which employees were hired in 2024?
+How many employees were hired this year?
+List employees hired after 2022-01-01 in Engineering.
+What is the average salary by department?
+Which department has the highest average salary?
+Find all employees with “Manager” in their title.
+What’s the median salary in Engineering? (If median unsupported, expect avg as fallback.)
+List employees with salary above 110000.
+Count employees per department sorted descending.
+Joins and relationships (if you have a departments table in your DB)
+Who is the manager of Engineering?
+Which departments are located in San Francisco?
+List all employees and their department locations.
+How many employees work in each location?
+Which department has the most employees?
+Document-only (tests the CSV ingestion and semantic retrieval)
+Show rows mentioning Kubernetes.
+Find references to “Financial Modeling.”
+Which documents mention San Francisco?
+Show all entries that mention “Recruiting” or “Onboarding.”
+Find mentions of “bonus” in July 2024.
+Hybrid (both DB + docs; tests classifier + retrieval)
+Which employees have Advanced Python skill, and show a short excerpt mentioning it.
+Who works in departments located in Chicago? Include any doc snippets that mention Chicago.
+Which employees have any “Advanced” proficiency and what’s their title?
+Show employees with “CI/CD” experience and include the related document snippets.
+For Data Analysts, show any document rows that mention SQL or data visualization.
+Synonyms and NL robustness
+How many staff in HR?
+List personnel with a hire date after 2023-06-01.
+What’s the compensation distribution by team?
+Show employees and their supervisors for each division.
+Who are the leads in Sales?
+DML (writes; run on a test DB)
+Increase the salary of HR department by 10 percent.
+Give a 3000 bonus to all employees hired after 2023-01-01.
+Promote Bob Smith to Senior Software Engineer.
+Insert a new employee John Doe in Sales with salary 72000 hired on 2024-09-15.
+Delete employees with salary below 70000. (Destructive—only in a scratch DB.)

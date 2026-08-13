@@ -112,6 +112,11 @@ export const Dashboard = () => {
   const [queryLoading, setQueryLoading] = useState(false);
   const [queryResult, setQueryResult] = useState<QueryResponse | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
+  const [confirmationBanner, setConfirmationBanner] = useState<{
+    message: string;
+    severity: "success" | "warning" | "error";
+    sql?: string;
+  } | null>(null);
 
   const [history, setHistory] = useState<HistoryRecord[]>([]);
 
@@ -255,6 +260,7 @@ export const Dashboard = () => {
 
     setQueryLoading(true);
     setQueryError(null);
+    setConfirmationBanner(null);
     try {
       const normalized = normalizeConnectionString(connectionString);
       const { data } = await api.post<QueryResponse>("/api/query", {
@@ -263,6 +269,25 @@ export const Dashboard = () => {
         top_k: 10
       });
       setQueryResult(data);
+
+      // Check if this was a DML operation and show a confirmation banner
+      if (data.results && data.results.length === 1) {
+        const first = data.results[0] as Record<string, unknown>;
+        if (first.confirmation) {
+          const affected = Number(first.affected_rows ?? 0);
+          setConfirmationBanner({
+            message: String(first.confirmation),
+            severity: first.status === "success" && affected > 0 ? "success" : "warning",
+            sql: first.sql_executed ? String(first.sql_executed) : undefined,
+          });
+        } else if (first.error) {
+          setConfirmationBanner({
+            message: String(first.error),
+            severity: "error",
+          });
+        }
+      }
+
       void fetchHistory(normalized).then((records) => records && setHistory(records));
     } catch (error) {
       setQueryError(axios.isAxiosError(error) ? error.response?.data?.detail ?? error.message : String(error));
@@ -440,6 +465,37 @@ export const Dashboard = () => {
           </Stack>
           {queryLoading ? <LinearProgress /> : null}
           {queryError ? <Alert severity="error">{queryError}</Alert> : null}
+
+          {/* ── Confirmation banner for UPDATE / INSERT results ── */}
+          {confirmationBanner ? (
+            <Alert
+              severity={confirmationBanner.severity}
+              onClose={() => setConfirmationBanner(null)}
+              sx={{ fontWeight: 500 }}
+            >
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                {confirmationBanner.message}
+              </Typography>
+              {confirmationBanner.sql ? (
+                <Typography
+                  variant="caption"
+                  component="pre"
+                  sx={{
+                    display: "block",
+                    mt: 1,
+                    p: 1,
+                    bgcolor: "rgba(0,0,0,0.06)",
+                    borderRadius: 1,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-all",
+                    fontFamily: "monospace"
+                  }}
+                >
+                  {confirmationBanner.sql}
+                </Typography>
+              ) : null}
+            </Alert>
+          ) : null}
 
           {queryResult ? (
             <Box>
@@ -654,15 +710,15 @@ const fetchJobStatus = async (jobId: string) => {
 };
 
 function normalizeConnectionString(input: string): string {
-  // Ensure postgres URLs use psycopg v3 driver
+  // Ensure postgres URLs explicitly use the psycopg2 driver
+  // (psycopg2-binary is installed; psycopg v3 is NOT installed on this system)
   const lower = input.toLowerCase();
-  if (lower.startsWith("postgresql+")) return input; // already has driver
-  if (lower.startsWith("postgres+")) return input; // uncommon but already explicit
+  if (lower.startsWith("postgresql+") || lower.startsWith("postgres+")) return input; // already explicit
   if (lower.startsWith("postgresql://")) {
-    return input.replace(/^postgresql:\/\//i, "postgresql+psycopg://");
+    return input.replace(/^postgresql:\/\//i, "postgresql+psycopg2://");
   }
   if (lower.startsWith("postgres://")) {
-    return input.replace(/^postgres:\/\//i, "postgresql+psycopg://");
+    return input.replace(/^postgres:\/\//i, "postgresql+psycopg2://");
   }
   return input;
 }
